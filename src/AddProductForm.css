@@ -1,0 +1,96 @@
+.admin-form-wrap {
+  max-width: 480px;
+  margin: 40px auto;
+  background: white;
+  padding: 24px 28px;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.admin-form-wrap h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.admin-form textarea {
+  resize: vertical;
+}
+
+.photo-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photo-row {
+  display: flex;
+  gap: 8px;
+}
+
+.photo-row input {
+  flex: 1;
+}
+
+.remove-photo-btn,
+.add-photo-btn {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.submit-btn {
+  background: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.msg {
+  font-size: 14px;
+  margin: 0;
+}
+
+.msg.success {
+  color: #2e7d32;
+}
+
+.msg.error {
+  color: #c62828;
+}
