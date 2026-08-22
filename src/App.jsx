@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import AddProductForm from './AddProductForm';
 
-const API_URL = 'https://telegram-clothing-store-eiow.onrender.com';
+const API_URL = 'https://gladly-cupbearer-clench.ngrok-free.dev';
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 function ProductCard({ product }) {
