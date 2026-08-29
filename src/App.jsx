@@ -1,34 +1,109 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import AddProductForm from './AddProductForm';
+import AddProductForm from './AddProductForm.jsx';
 
-const API_URL = 'https://gladly-cupbearer-clench.ngrok-free.dev';
+const API_URL = 'http://189.74.120.149:8080';
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
-function ProductCard({ product }) {
+function getPhotoList(photoUrl) {
+  if (!photoUrl) return [];
+  return photoUrl.split(',').map((p) => p.trim()).filter(Boolean);
+}
+
+function ProductCard({ product, onSelect }) {
   const [imgError, setImgError] = useState(false);
-  const showImage = product.photoUrl && !imgError;
+  const photos = getPhotoList(product.photoUrl);
+  const firstPhoto = photos[0];
+  const showImage = firstPhoto && !imgError;
 
   return (
-    <div className="card">
-      <div className="card-image-wrap">
+    <article className="product-card" onClick={() => onSelect(product)} style={{ cursor: 'pointer' }}>
+      <div className="product-image">
         {showImage ? (
           <img
-            src={product.photoUrl}
+            src={firstPhoto}
             alt={product.title}
             onError={() => setImgError(true)}
           />
         ) : (
-          <span className="card-image-placeholder">Нет фото</span>
+          <span>Нет фото</span>
         )}
       </div>
-      <h4>{product.title}</h4>
-      <p className="size">Размер: {product.size}</p>
-      <p className="material">{product.material}</p>
-      <a href={product.avitoUrl} target="_blank" rel="noreferrer" className="buy-btn">
-        Купить
-      </a>
-    </div>
+
+      <div className="product-info">
+        <h3>{product.title}</h3>
+        {product.price && <div className="product-price">{product.price.toLocaleString('ru-RU')} ₽</div>}
+        <p>{product.material}</p>
+        <div className="product-footer">
+          <span>Размер {product.size}</span>
+          <span className="open-link">Подробнее</span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ProductDetailView({ product, onBack }) {
+  const [activePhoto, setActivePhoto] = useState(0);
+  const photos = getPhotoList(product.photoUrl);
+
+  return (
+    <main className="shop-page">
+      <header className="shop-header">
+        <button className="brand-button" onClick={onBack}>
+          ← Магазин
+        </button>
+      </header>
+
+      <section className="product-gallery">
+        <div className="product-gallery-main">
+          {photos.length > 0 ? (
+            <img src={photos[activePhoto]} alt={product.title} />
+          ) : (
+            <span>Нет фото</span>
+          )}
+        </div>
+
+        {photos.length > 1 && (
+          <div className="product-gallery-thumbs">
+            {photos.map((photo, index) => (
+              <button
+                key={index}
+                className={index === activePhoto ? 'thumb active' : 'thumb'}
+                onClick={() => setActivePhoto(index)}
+              >
+                <img src={photo} alt="" />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="product-detail">
+        <h1>{product.title}</h1>
+        {product.price && (
+          <div className="product-detail-price">
+            {product.price.toLocaleString('ru-RU')} ₽
+          </div>
+        )}
+        <p className="product-detail-size">Размер: {product.size}</p>
+        <p className="product-detail-material">{product.material}</p>
+        {product.description && (
+          <p className="product-detail-description">{product.description}</p>
+        )}
+
+        {product.avitoUrl && (
+          <a
+            href={product.avitoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="buy-btn"
+          >
+            Открыть на Avito
+          </a>
+        )}
+      </section>
+    </main>
   );
 }
 
@@ -38,9 +113,10 @@ function App() {
   const [selectedSize, setSelectedSize] = useState(null);
   const [products, setProducts] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
-    if (window.Telegram && window.Telegram.WebApp) {
+    if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
     }
@@ -51,16 +127,19 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         setCategories(data);
-        if (data.length > 0) setSelectedCategoryId(data[0].id);
       })
       .catch((err) => console.error('Ошибка загрузки категорий:', err));
   }, []);
 
   useEffect(() => {
     if (!selectedCategoryId) {
-      setProducts([]);
+      fetch(`${API_URL}/api/categories/products/all`)
+        .then((res) => res.json())
+        .then((data) => setProducts(data))
+        .catch((err) => console.error('Ошибка загрузки товаров:', err));
       return;
     }
+
     fetch(`${API_URL}/api/categories/${selectedCategoryId}/products`)
       .then((res) => res.json())
       .then((data) => setProducts(data))
@@ -68,73 +147,114 @@ function App() {
   }, [selectedCategoryId]);
 
   const filteredProducts = selectedSize
-    ? products.filter((p) => p.size === selectedSize)
+    ? products.filter((product) => product.size === selectedSize)
     : products;
 
+  // Экран карточки товара
+  if (selectedProduct) {
+    return <ProductDetailView product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  }
+
+  // Экран админки
+  if (showAdmin) {
+    return (
+      <main className="shop-page">
+        <header className="shop-header">
+          <button className="brand-button" onClick={() => setShowAdmin(false)}>
+            ← Магазин
+          </button>
+          <span className="header-label">Админка</span>
+        </header>
+
+        <AddProductForm apiUrl={API_URL} />
+      </main>
+    );
+  }
+
+  // Главный экран каталога
   return (
-    <div className="tg-page">
-      {!showAdmin && (
-        <>
-          <header className="tg-header">
-            <h1>Мой магазин</h1>
-            <button className="admin-toggle-btn" onClick={() => setShowAdmin(true)}>
-              +
+    <main className="shop-page">
+      <header className="shop-header">
+        <button
+          className="brand-button"
+          onClick={() => {
+            setSelectedCategoryId(null);
+            setSelectedSize(null);
+          }}
+        >
+          Heylo store
+        </button>
+
+        <button
+          className="admin-button"
+          aria-label="Открыть админку"
+          onClick={() => setShowAdmin(true)}
+        >
+          +
+        </button>
+      </header>
+
+      <section className="hero">
+        <img src="/hero.jpg" alt="Коллекция одежды" />
+      </section>
+
+      <nav className="catalog-menu" aria-label="Категории">
+        <button
+          className={!selectedCategoryId ? 'active' : ''}
+          onClick={() => {
+            setSelectedCategoryId(null);
+            setSelectedSize(null);
+          }}
+        >
+          Все
+        </button>
+
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            className={selectedCategoryId === category.id ? 'active' : ''}
+            onClick={() => {
+              setSelectedCategoryId(category.id);
+              setSelectedSize(null);
+            }}
+          >
+            {category.name}
+          </button>
+        ))}
+      </nav>
+
+      <section className="filters">
+        <p className="section-title">Размер</p>
+
+        <div className="size-list">
+          {SIZES.map((size) => (
+            <button
+              key={size}
+              className={selectedSize === size ? 'selected' : ''}
+              onClick={() =>
+                setSelectedSize(selectedSize === size ? null : size)
+              }
+            >
+              {size}
             </button>
-          </header>
+          ))}
+        </div>
+      </section>
 
-          <div className="category-tabs">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                className={`tab ${selectedCategoryId === cat.id ? 'active' : ''}`}
-                onClick={() => setSelectedCategoryId(cat.id)}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="size-chips">
-            {SIZES.map((size) => (
-              <button
-                key={size}
-                className={`chip ${selectedSize === size ? 'active' : ''}`}
-                onClick={() => setSelectedSize(selectedSize === size ? null : size)}
-              >
-                {size}
-              </button>
-            ))}
-            {selectedSize && (
-              <button className="chip reset-chip" onClick={() => setSelectedSize(null)}>
-                Сбросить
-              </button>
-            )}
-          </div>
-
-          <main className="product-feed">
-            {!selectedCategoryId ? (
-              <p className="empty-msg">Выберите категорию</p>
-            ) : filteredProducts.length === 0 ? (
-              <p className="empty-msg">Товаров не найдено</p>
-            ) : (
-              filteredProducts.map((p) => <ProductCard key={p.id} product={p} />)
-            )}
-          </main>
-        </>
-      )}
-
-      {showAdmin && (
-        <>
-          <header className="tg-header">
-            <h1>Админка</h1>
-            <button className="admin-toggle-btn" onClick={() => setShowAdmin(false)}>
-              ×
-            </button>
-          </header>
-          <AddProductForm apiUrl={API_URL} />
-        </>
-      )}
-    </div>
+      <section className="products">
+        {filteredProducts.length === 0 ? (
+          <p className="empty-message">Товаров не найдено</p>
+        ) : (
+          filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onSelect={(p) => setSelectedProduct(p)}
+            />
+          ))
+        )}
+      </section>
+    </main>
   );
 }
 

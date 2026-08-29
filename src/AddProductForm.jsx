@@ -11,8 +11,11 @@ function AddProductForm({ apiUrl }) {
   const [description, setDescription] = useState('');
   const [size, setSize] = useState('M');
   const [material, setMaterial] = useState('');
+  const [price, setPrice] = useState('');
   const [avitoUrl, setAvitoUrl] = useState('');
   const [photoUrls, setPhotoUrls] = useState([]);
+  const [photoSource, setPhotoSource] = useState('upload'); // 'upload' | 'link'
+  const [photoLinkInput, setPhotoLinkInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -45,13 +48,28 @@ function AddProductForm({ apiUrl }) {
         });
         if (!res.ok) throw new Error('Ошибка загрузки файла');
         const data = await res.json();
-        setPhotoUrls((prev) => [...prev, data.url]);
+        setPhotoUrls((prev) => [...prev, { url: data.url, isExternal: false }]);
       } catch (err) {
         console.error('Ошибка загрузки фото:', err);
       }
     }
     setUploading(false);
     e.target.value = '';
+  };
+
+  const handleAddPhotoLink = () => {
+    const trimmed = photoLinkInput.trim();
+    if (!trimmed) return;
+
+    try {
+      new URL(trimmed);
+    } catch {
+      alert('Введите корректную ссылку на фото (например, с Avito)');
+      return;
+    }
+
+    setPhotoUrls((prev) => [...prev, { url: trimmed, isExternal: true }]);
+    setPhotoLinkInput('');
   };
 
   const removePhoto = (index) => {
@@ -62,7 +80,7 @@ function AddProductForm({ apiUrl }) {
     e.preventDefault();
     setStatus('saving');
 
-    const combinedPhotoUrl = photoUrls.join(',');
+    const combinedPhotoUrl = photoUrls.map((p) => p.url).join(',');
 
     try {
       const res = await fetch(`${apiUrl}/api/categories/products`, {
@@ -74,6 +92,7 @@ function AddProductForm({ apiUrl }) {
           description,
           size,
           material,
+          price: price ? Number(price) : null,
           avitoUrl,
           photoUrl: combinedPhotoUrl,
         }),
@@ -85,6 +104,7 @@ function AddProductForm({ apiUrl }) {
       setTitle('');
       setDescription('');
       setMaterial('');
+      setPrice('');
       setAvitoUrl('');
       setPhotoUrls([]);
     } catch (err) {
@@ -132,22 +152,78 @@ function AddProductForm({ apiUrl }) {
         </label>
 
         <label>
+          Цена (₽)
+          <input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="Например: 3500"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+          />
+        </label>
+
+        <label>
           Ссылка на Avito (необязательно)
           <input value={avitoUrl} onChange={(e) => setAvitoUrl(e.target.value)} />
         </label>
 
-        <label>
-          Фото товара
-          <input type="file" accept="image/*" multiple onChange={handleFileSelect} disabled={uploading} />
-        </label>
+        <div className="photo-block">
+          <span className="photo-block-label">Фото товара</span>
 
-        {uploading && <p className="msg">Загрузка фото...</p>}
+          <div className="photo-source-toggle">
+            <button
+              type="button"
+              className={photoSource === 'upload' ? 'toggle-btn active' : 'toggle-btn'}
+              onClick={() => setPhotoSource('upload')}
+            >
+              С компьютера
+            </button>
+            <button
+              type="button"
+              className={photoSource === 'link' ? 'toggle-btn active' : 'toggle-btn'}
+              onClick={() => setPhotoSource('link')}
+            >
+              Ссылка (Avito)
+            </button>
+          </div>
+
+          {photoSource === 'upload' ? (
+            <>
+              <input type="file" accept="image/*" multiple onChange={handleFileSelect} disabled={uploading} />
+              {uploading && <p className="msg">Загрузка фото...</p>}
+            </>
+          ) : (
+            <div className="photo-row">
+              <input
+                type="url"
+                placeholder="https://avito.ru/..."
+                value={photoLinkInput}
+                onChange={(e) => setPhotoLinkInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddPhotoLink();
+                  }
+                }}
+              />
+              <button type="button" className="add-photo-btn" onClick={handleAddPhotoLink}>
+                Добавить
+              </button>
+            </div>
+          )}
+        </div>
 
         {photoUrls.length > 0 && (
           <div className="photo-preview-row">
-            {photoUrls.map((url, index) => (
+            {photoUrls.map((photo, index) => (
               <div key={index} className="photo-preview-item">
-                <img src={`${apiUrl}${url}`} alt="" />
+                <img
+                  src={photo.isExternal ? photo.url : `${apiUrl}${photo.url}`}
+                  alt=""
+                  onError={(e) => { e.target.style.opacity = 0.3; }}
+                />
                 <button type="button" onClick={() => removePhoto(index)} className="remove-photo-btn">
                   ✕
                 </button>
