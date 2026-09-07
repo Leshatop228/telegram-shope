@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import './App.css';
 import AddProductForm from './AddProductForm.jsx';
 
-const API_URL = 'http://189.74.120.149:8080';
+const API_URL = '';
+
+
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 function getPhotoList(photoUrl) {
@@ -171,7 +173,7 @@ function App() {
     );
   }
 
-  // Главный экран каталога
+
   return (
     <main className="shop-page">
       <header className="shop-header">
@@ -182,7 +184,7 @@ function App() {
             setSelectedSize(null);
           }}
         >
-          Heylo store
+          GOGACLO
         </button>
 
         <button
