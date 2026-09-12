@@ -5,6 +5,8 @@ import AddProductForm from './AddProductForm.jsx';
 const API_URL = '';
 
 
+const ADMIN_IDS = [817016114, 817016114];
+
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 function getPhotoList(photoUrl) {
@@ -45,7 +47,7 @@ function ProductCard({ product, onSelect }) {
   );
 }
 
-function ProductDetailView({ product, onBack }) {
+function ProductDetailView({ product, onBack, onAddToCart }) {
   const [activePhoto, setActivePhoto] = useState(0);
   const photos = getPhotoList(product.photoUrl);
 
@@ -53,7 +55,7 @@ function ProductDetailView({ product, onBack }) {
     <main className="shop-page">
       <header className="shop-header">
         <button className="brand-button" onClick={onBack}>
-          ← Магазин
+          ← Назад
         </button>
       </header>
 
@@ -94,15 +96,97 @@ function ProductDetailView({ product, onBack }) {
           <p className="product-detail-description">{product.description}</p>
         )}
 
-        {product.avitoUrl && (
-          <a
-            href={product.avitoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="buy-btn"
-          >
-            Открыть на Avito
-          </a>
+        <button
+          className="buy-btn"
+          onClick={() => {
+            onAddToCart(product);
+          }}
+        >
+          Добавить в корзину
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function CartView({ cart, onBack, onUpdateCount, onRemove, onCheckout }) {
+  const totalPrice = cart.reduce((sum, item) => sum + (item.price || 0) * item.count, 0);
+
+  return (
+    <main className="shop-page">
+      <header className="shop-header">
+        <button className="brand-button" onClick={onBack}>
+          ← Каталог
+        </button>
+        <span className="header-label">Корзина</span>
+      </header>
+
+      <section className="cart-content" style={{ padding: '16px' }}>
+        {cart.length === 0 ? (
+          <p className="empty-message">Корзина пуста</p>
+        ) : (
+          <div>
+            <div className="cart-items" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {cart.map((item) => (
+                <div
+                  key={`${item.id}-${item.size}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    background: '#1a1a1a',
+                    border: '1px solid #2e2e2e',
+                  }}
+                >
+                  <div>
+                    <h4 style={{ margin: '0 0 4px 0' }}>{item.title}</h4>
+                    <p style={{ margin: '0', fontSize: '14px', color: '#888' }}>
+                      Размер: {item.size} • {item.price?.toLocaleString('ru-RU')} ₽
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      style={{ padding: '4px 10px', borderRadius: '6px' }}
+                      onClick={() => onUpdateCount(item.id, item.count - 1)}
+                    >
+                      -
+                    </button>
+                    <span>{item.count}</span>
+                    <button
+                      style={{ padding: '4px 10px', borderRadius: '6px' }}
+                      onClick={() => onUpdateCount(item.id, item.count + 1)}
+                    >
+                      +
+                    </button>
+                    <button
+                      style={{ marginLeft: '8px', color: '#ff4d4f', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                      onClick={() => onRemove(item.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: '24px', borderTop: '1px solid #333', paddingTop: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}>
+                <span>Итого:</span>
+                <span>{totalPrice.toLocaleString('ru-RU')} ₽</span>
+              </div>
+
+              <button
+                className="buy-btn"
+                style={{ marginTop: '16px', width: '100%' }}
+                onClick={onCheckout}
+              >
+                Оформить заказ
+              </button>
+            </div>
+          </div>
         )}
       </section>
     </main>
@@ -116,20 +200,26 @@ function App() {
   const [products, setProducts] = useState([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [showCart, setShowCart] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      const currentUserId = tg.initDataUnsafe?.user?.id;
+      if (currentUserId && ADMIN_IDS.includes(currentUserId)) {
+        setIsAdmin(true);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetch(`${API_URL}/api/categories`)
       .then((res) => res.json())
-      .then((data) => {
-        setCategories(data);
-      })
+      .then((data) => setCategories(data))
       .catch((err) => console.error('Ошибка загрузки категорий:', err));
   }, []);
 
@@ -148,16 +238,85 @@ function App() {
       .catch((err) => console.error('Ошибка загрузки товаров:', err));
   }, [selectedCategoryId]);
 
+  const handleAddToCart = (product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === product.id ? { ...item, count: item.count + 1 } : item
+        );
+      }
+      return [...prev, { ...product, count: 1 }];
+    });
+    setSelectedProduct(null);
+    setShowCart(true);
+  };
+
+  const handleUpdateCount = (productId, newCount) => {
+    if (newCount <= 0) {
+      handleRemoveFromCart(productId);
+      return;
+    }
+    setCart((prev) =>
+      prev.map((item) => (item.id === productId ? { ...item, count: newCount } : item))
+    );
+  };
+
+  const handleRemoveFromCart = (productId) => {
+    setCart((prev) => prev.filter((item) => item.id !== productId));
+  };
+
+  const handleCheckout = () => {
+    const tg = window.Telegram?.WebApp;
+    const orderData = {
+      items: cart.map((i) => ({
+        id: i.id,
+        title: i.title,
+        price: i.price,
+        size: i.size,
+        count: i.count,
+      })),
+      totalPrice: cart.reduce((sum, item) => sum + (item.price || 0) * item.count, 0),
+    };
+
+    if (tg && tg.sendData) {
+      tg.sendData(JSON.stringify(orderData));
+      alert('Заказ отправлен боту!');
+      setCart([]);
+      setShowCart(false);
+    } else {
+      alert(`Заказ оформлен на сумму ${orderData.totalPrice} ₽! В браузере отправка в Telegram отключена.`);
+    }
+  };
+
   const filteredProducts = selectedSize
     ? products.filter((product) => product.size === selectedSize)
     : products;
 
-  // Экран карточки товара
-  if (selectedProduct) {
-    return <ProductDetailView product={selectedProduct} onBack={() => setSelectedProduct(null)} />;
+  const totalCartCount = cart.reduce((sum, item) => sum + item.count, 0);
+
+  if (showCart) {
+    return (
+      <CartView
+        cart={cart}
+        onBack={() => setShowCart(false)}
+        onUpdateCount={handleUpdateCount}
+        onRemove={handleRemoveFromCart}
+        onCheckout={handleCheckout}
+      />
+    );
   }
 
-  // Экран админки
+  if (selectedProduct) {
+    return (
+      <ProductDetailView
+        product={selectedProduct}
+        onBack={() => setSelectedProduct(null)}
+        onAddToCart={handleAddToCart}
+      />
+    );
+  }
+
   if (showAdmin) {
     return (
       <main className="shop-page">
@@ -173,7 +332,6 @@ function App() {
     );
   }
 
-
   return (
     <main className="shop-page">
       <header className="shop-header">
@@ -187,13 +345,25 @@ function App() {
           GOGACLO
         </button>
 
-        <button
-          className="admin-button"
-          aria-label="Открыть админку"
-          onClick={() => setShowAdmin(true)}
-        >
-          +
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="brand-button"
+            onClick={() => setShowCart(true)}
+            style={{ fontSize: '14px', padding: '6px 12px' }}
+          >
+            Корзина {totalCartCount > 0 ? `(${totalCartCount})` : ''}
+          </button>
+
+          {isAdmin && (
+            <button
+              className="admin-button"
+              aria-label="Открыть админку"
+              onClick={() => setShowAdmin(true)}
+            >
+              +
+            </button>
+          )}
+        </div>
       </header>
 
       <section className="hero">
