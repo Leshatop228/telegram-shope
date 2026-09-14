@@ -5,7 +5,7 @@ import AddProductForm from './AddProductForm.jsx';
 const API_URL = '';
 
 
-const ADMIN_IDS = [817016114, 817016114];
+const ADMIN_IDS = [817016114, 432903498];
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
@@ -327,7 +327,8 @@ function App() {
           <span className="header-label">Админка</span>
         </header>
 
-        <AddProductForm apiUrl={API_URL} />
+        <AddProductForm apiUrl={API_URL} initData={window.Telegram?.WebApp?.initData ?? ""}/>
+
       </main>
     );
   }

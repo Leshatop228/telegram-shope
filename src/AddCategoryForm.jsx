@@ -1,24 +1,33 @@
 import { useState } from 'react';
 
-function AddCategoryForm({ apiUrl, onCreated }) {
+function AddCategoryForm({ apiUrl, initData, onCreated }) {
   const [name, setName] = useState('');
   const [status, setStatus] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('saving');
+
     try {
       const res = await fetch(`${apiUrl}/api/categories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Init-Data': initData || '',
+        },
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error('Ошибка сервера');
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Ошибка ${res.status}: ${errorText}`);
+      }
+
       setStatus('success');
       setName('');
       if (onCreated) onCreated();
     } catch (err) {
-      console.error(err);
+      console.error('Ошибка добавления категории:', err);
       setStatus('error');
     }
   };
