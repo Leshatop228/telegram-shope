@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.css';
-import AddProductForm from './addProductForm.jsx';
+import AddProductForm from './AddProductForm.jsx';
 
 const API_URL = '';
 

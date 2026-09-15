@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './AddProductForm.css';
-import AddCategoryForm from './addCategoryForm';
+import AddCategoryForm from './AddCategoryForm';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
