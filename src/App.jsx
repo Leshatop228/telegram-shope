@@ -4,13 +4,13 @@ import AddProductForm from './AddProductForm.jsx';
 
 const API_URL = '';
 
-// Ваши с партнёром Telegram ID:
+
 const ADMIN_IDS = [817016114, 432903498];
 
-// Юзернейм для кнопки "Написать продавцу" (без @):
+
 const SELLER_USERNAME = 'your_telegram_username';
 
-// Секретный ключ для входа через ссылку:
+
 const ADMIN_SECRET_KEY = 'gogaclo2026';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
@@ -20,7 +20,7 @@ function getPhotoList(photoUrl) {
   return photoUrl.split(',').map((p) => p.trim()).filter(Boolean);
 }
 
-function ProductCard({ product, onSelect, isLiked, onToggleLike }) {
+function ProductCard({ product, onSelect, isLiked, onToggleLike, isAdmin, onDelete }) {
   const [imgError, setImgError] = useState(false);
   const photos = getPhotoList(product.photoUrl);
   const firstPhoto = photos[0];
@@ -51,18 +51,37 @@ function ProductCard({ product, onSelect, isLiked, onToggleLike }) {
       </div>
 
       <div className="product-info">
-        <h3>{product.title}</h3>
-        {product.price && (
-          <div className="product-price">
-            {product.price.toLocaleString('ru-RU')} ₽
-          </div>
-        )}
-        <p>{product.material}</p>
-        <div className="product-footer">
-          <span>Размер {product.size}</span>
-          <span className="open-link">Подробнее</span>
-        </div>
+  <h3>{product.title}</h3>
+
+  {product.price && (
+    <div className="product-price">
+      {product.price.toLocaleString('ru-RU')} ₽
+    </div>
+  )}
+
+  <p>{product.material}</p>
+
+      <div className="product-footer">
+        <span>Размер {product.size}</span>
+        <span className="open-link">Подробнее</span>
       </div>
+
+      {isAdmin && (
+        <button
+          type="button"
+          className="delete-product-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm(`Удалить товар "${product.title}"?`)) {
+              onDelete(product.id);
+            }
+          }}
+        >
+          Удалить
+        </button>
+      )}
+    </div>
+
     </article>
   );
 }
@@ -370,6 +389,23 @@ function App() {
   const handleRemoveFromCart = (productId) => {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
+  const handleDeleteProduct = async (productId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/categories/products/${productId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Не удалось удалить товар');
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setSelectedProduct((prev) => (prev?.id === productId ? null : prev));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
 
   const handleCheckout = () => {
     const tg = window.Telegram?.WebApp;
@@ -557,8 +593,11 @@ function App() {
                   onSelect={(p) => setSelectedProduct(p)}
                   isLiked={likedIds.includes(product.id)}
                   onToggleLike={toggleLike}
+                  isAdmin={isAdmin}
+                  onDelete={handleDeleteProduct}
                 />
-              ))
+
+              ))я
             )}
           </section>
         </>
