@@ -4,7 +4,7 @@ import AddCategoryForm from './AddCategoryForm';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
-function AddProductForm({ apiUrl }) {
+function AddProductForm({ apiUrl, initData }) {
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState('');
   const [title, setTitle] = useState('');
@@ -44,6 +44,7 @@ function AddProductForm({ apiUrl }) {
       try {
         const res = await fetch(`${apiUrl}/api/upload`, {
           method: 'POST',
+          headers: { 'X-Telegram-Init-Data': initData },
           body: formData,
         });
         if (!res.ok) throw new Error('Ошибка загрузки файла');
@@ -85,7 +86,7 @@ function AddProductForm({ apiUrl }) {
     try {
       const res = await fetch(`${apiUrl}/api/categories/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json','X-Telegram-Init-Data': initData  || ''},
         body: JSON.stringify({
           categoryId: Number(categoryId),
           title,
@@ -98,7 +99,11 @@ function AddProductForm({ apiUrl }) {
         }),
       });
 
-      if (!res.ok) throw new Error('Сервер вернул ошибку');
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Ошибка ${res.status}: ${errText}`);
+      }
+
 
       setStatus('success');
       setTitle('');
@@ -116,7 +121,7 @@ function AddProductForm({ apiUrl }) {
   return (
     <div className="admin-form-wrap">
       <h2>Категории</h2>
-      <AddCategoryForm apiUrl={apiUrl} onCreated={loadCategories} />
+      <AddCategoryForm apiUrl={apiUrl} initData={initData} onCreated={loadCategories} />
 
       <h2>Добавить товар</h2>
       <form onSubmit={handleSubmit} className="admin-form">

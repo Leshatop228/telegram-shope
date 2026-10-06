@@ -7,6 +7,12 @@ const API_URL = '';
 
 const ADMIN_IDS = [817016114, 432903498];
 
+
+const SELLER_USERNAME = 'your_telegram_username';
+
+
+const ADMIN_SECRET_KEY = 'gogaclo2026';
+
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 function getPhotoList(photoUrl) {
@@ -14,14 +20,14 @@ function getPhotoList(photoUrl) {
   return photoUrl.split(',').map((p) => p.trim()).filter(Boolean);
 }
 
-function ProductCard({ product, onSelect }) {
+function ProductCard({ product, onSelect, isLiked, onToggleLike, isAdmin, onDelete }) {
   const [imgError, setImgError] = useState(false);
   const photos = getPhotoList(product.photoUrl);
   const firstPhoto = photos[0];
   const showImage = firstPhoto && !imgError;
 
   return (
-    <article className="product-card" onClick={() => onSelect(product)} style={{ cursor: 'pointer' }}>
+    <article className="product-card" onClick={() => onSelect(product)}>
       <div className="product-image">
         {showImage ? (
           <img
@@ -32,78 +38,163 @@ function ProductCard({ product, onSelect }) {
         ) : (
           <span>Нет фото</span>
         )}
+        <button
+          type="button"
+          className={`card-heart-btn ${isLiked ? 'liked' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleLike(product.id);
+          }}
+        >
+          {isLiked ? '♥' : '♡'}
+        </button>
       </div>
 
       <div className="product-info">
-        <h3>{product.title}</h3>
-        {product.price && <div className="product-price">{product.price.toLocaleString('ru-RU')} ₽</div>}
-        <p>{product.material}</p>
-        <div className="product-footer">
-          <span>Размер {product.size}</span>
-          <span className="open-link">Подробнее</span>
-        </div>
+  <h3>{product.title}</h3>
+
+  {product.price && (
+    <div className="product-price">
+      {product.price.toLocaleString('ru-RU')} ₽
+    </div>
+  )}
+
+  <p>{product.material}</p>
+
+      <div className="product-footer">
+        <span>Размер {product.size}</span>
+        <span className="open-link">Подробнее</span>
       </div>
+
+      {isAdmin && (
+        <button
+          type="button"
+          className="delete-product-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm(`Удалить товар "${product.title}"?`)) {
+              onDelete(product.id);
+            }
+          }}
+        >
+          Удалить
+        </button>
+      )}
+    </div>
+
     </article>
   );
 }
 
-function ProductDetailView({ product, onBack, onAddToCart }) {
+function ProductDetailView({ product, onBack, onAddToCart, isLiked, onToggleLike }) {
   const [activePhoto, setActivePhoto] = useState(0);
   const photos = getPhotoList(product.photoUrl);
 
+  const nextPhoto = () => {
+    if (photos.length > 1) {
+      setActivePhoto((prev) => (prev + 1) % photos.length);
+    }
+  };
+
+  const prevPhoto = () => {
+    if (photos.length > 1) {
+      setActivePhoto((prev) => (prev - 1 + photos.length) % photos.length);
+    }
+  };
+
+  const handleContactSeller = () => {
+    const tg = window.Telegram?.WebApp;
+    const directUrl = `https://t.me/${SELLER_USERNAME}`;
+    if (tg && typeof tg.openTelegramLink === 'function') {
+      tg.openTelegramLink(directUrl);
+    } else {
+      window.open(directUrl, '_blank');
+    }
+  };
+
   return (
-    <main className="shop-page">
-      <header className="shop-header">
-        <button className="brand-button" onClick={onBack}>
-          ← Назад
+    <main className="shop-page product-detail-screen">
+      <header className="detail-top-nav">
+        <button className="back-arrow-btn" onClick={onBack}>
+          ← НАЗАД
+        </button>
+        <button
+          type="button"
+          className={`detail-heart-btn ${isLiked ? 'liked' : ''}`}
+          onClick={() => onToggleLike(product.id)}
+        >
+          {isLiked ? '♥' : '♡'}
         </button>
       </header>
 
-      <section className="product-gallery">
-        <div className="product-gallery-main">
-          {photos.length > 0 ? (
+      <section className="detail-gallery">
+        {photos.length > 0 ? (
+          <div className="detail-gallery-main">
             <img src={photos[activePhoto]} alt={product.title} />
-          ) : (
-            <span>Нет фото</span>
-          )}
-        </div>
 
-        {photos.length > 1 && (
-          <div className="product-gallery-thumbs">
-            {photos.map((photo, index) => (
-              <button
-                key={index}
-                className={index === activePhoto ? 'thumb active' : 'thumb'}
-                onClick={() => setActivePhoto(index)}
-              >
-                <img src={photo} alt="" />
-              </button>
-            ))}
+            {photos.length > 1 && (
+              <>
+                <button type="button" className="gallery-arrow prev" onClick={prevPhoto}>
+                  ‹
+                </button>
+                <button type="button" className="gallery-arrow next" onClick={nextPhoto}>
+                  ›
+                </button>
+                <div className="gallery-dots">
+                  {photos.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`dot ${idx === activePhoto ? 'active' : ''}`}
+                      onClick={() => setActivePhoto(idx)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
+        ) : (
+          <div className="no-photo-box">Нет фото</div>
         )}
       </section>
 
-      <section className="product-detail">
-        <h1>{product.title}</h1>
-        {product.price && (
-          <div className="product-detail-price">
-            {product.price.toLocaleString('ru-RU')} ₽
+      <section className="detail-info-block">
+        <h1 className="detail-title">{product.title}</h1>
+
+        <div className="detail-price">
+          {product.price ? `${product.price.toLocaleString('ru-RU')} ₽` : 'Цена по запросу'}
+        </div>
+
+        <div className="spec-table">
+          {product.material && (
+            <div className="spec-row">
+              <span className="spec-label">СОСТАВ / МАТЕРИАЛ</span>
+              <span className="spec-value">{product.material.toUpperCase()}</span>
+            </div>
+          )}
+          {product.size && (
+            <div className="spec-row">
+              <span className="spec-label">РАЗМЕР</span>
+              <span className="spec-value">{product.size}</span>
+            </div>
+          )}
+        </div>
+
+        {product.description && (
+          <div className="detail-description">
+            {product.description.split('\n').map((line, i) => (
+              <p key={i}>• {line.replace(/^[•\-]\s*/, '')}</p>
+            ))}
           </div>
         )}
-        <p className="product-detail-size">Размер: {product.size}</p>
-        <p className="product-detail-material">{product.material}</p>
-        {product.description && (
-          <p className="product-detail-description">{product.description}</p>
-        )}
 
-        <button
-          className="buy-btn"
-          onClick={() => {
-            onAddToCart(product);
-          }}
-        >
-          Добавить в корзину
-        </button>
+        <div className="detail-buttons">
+          <button className="buy-btn" onClick={() => onAddToCart(product)}>
+            Добавить в корзину
+          </button>
+          <button className="contact-seller-btn" onClick={handleContactSeller}>
+            Написать продавцу
+          </button>
+        </div>
       </section>
     </main>
   );
@@ -202,8 +293,20 @@ function App() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState('catalog'); // 'home' | 'catalog' | 'likes'
+  const [likedIds, setLikedIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('gogaclo_likes') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('gogaclo_admin') === 'true';
+  });
+
+  // Авторизация админа: по Telegram ID или по секретной ссылке (?key=...)
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
     if (tg) {
@@ -212,9 +315,30 @@ function App() {
       const currentUserId = tg.initDataUnsafe?.user?.id;
       if (currentUserId && ADMIN_IDS.includes(currentUserId)) {
         setIsAdmin(true);
+        localStorage.setItem('gogaclo_admin', 'true');
       }
     }
+
+    const tgStartParam = tg?.initDataUnsafe?.start_param;
+    const urlParams = new URLSearchParams(window.location.search);
+    const browserKey = urlParams.get('key');
+
+    if (tgStartParam === ADMIN_SECRET_KEY || browserKey === ADMIN_SECRET_KEY) {
+      setIsAdmin(true);
+      localStorage.setItem('gogaclo_admin', 'true');
+      alert('Режим администратора активирован!');
+    }
   }, []);
+
+  const toggleLike = (productId) => {
+    setLikedIds((prev) => {
+      const next = prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId];
+      localStorage.setItem('gogaclo_likes', JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetch(`${API_URL}/api/categories`)
@@ -265,6 +389,23 @@ function App() {
   const handleRemoveFromCart = (productId) => {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
+  const handleDeleteProduct = async (productId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/categories/products/${productId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Не удалось удалить товар');
+      }
+
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      setSelectedProduct((prev) => (prev?.id === productId ? null : prev));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
 
   const handleCheckout = () => {
     const tg = window.Telegram?.WebApp;
@@ -285,13 +426,13 @@ function App() {
       setCart([]);
       setShowCart(false);
     } else {
-      alert(`Заказ оформлен на сумму ${orderData.totalPrice} ₽! В браузере отправка в Telegram отключена.`);
+      alert(`Заказ оформлен на сумму ${orderData.totalPrice} ₽!`);
     }
   };
 
-  const filteredProducts = selectedSize
-    ? products.filter((product) => product.size === selectedSize)
-    : products;
+  const displayedProducts = products
+    .filter((p) => (activeTab === 'likes' ? likedIds.includes(p.id) : true))
+    .filter((p) => (selectedSize ? p.size === selectedSize : true));
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.count, 0);
 
@@ -313,6 +454,8 @@ function App() {
         product={selectedProduct}
         onBack={() => setSelectedProduct(null)}
         onAddToCart={handleAddToCart}
+        isLiked={likedIds.includes(selectedProduct.id)}
+        onToggleLike={toggleLike}
       />
     );
   }
@@ -327,14 +470,13 @@ function App() {
           <span className="header-label">Админка</span>
         </header>
 
-        <AddProductForm apiUrl={API_URL} initData={window.Telegram?.WebApp?.initData ?? ""}/>
-
+        <AddProductForm apiUrl={API_URL} />
       </main>
     );
   }
 
   return (
-    <main className="shop-page">
+    <main className="shop-page with-bottom-bar">
       <header className="shop-header">
         <button
           className="brand-button"
@@ -367,66 +509,135 @@ function App() {
         </div>
       </header>
 
-      <section className="hero">
-        <img src="/hero.jpg" alt="Коллекция одежды" />
-      </section>
+      {/* Экран Главная: баннер и инфо */}
+      {activeTab === 'home' && (
+        <section className="home-screen">
+          <div className="hero">
+            <img src="/hero.jpg" alt="Коллекция одежды" />
+          </div>
+          <div className="home-manifesto">
+            <h2>NEW DROP</h2>
+            <p>Новая коллекция базовой и уличной одежды. Минимализм, плотные ткани и идеальная посадка.</p>
+            <button className="buy-btn" onClick={() => setActiveTab('catalog')}>
+              Перейти в каталог →
+            </button>
+          </div>
+        </section>
+      )}
 
-      <nav className="catalog-menu" aria-label="Категории">
+      {/* Экран Каталог или Лайки */}
+      {activeTab !== 'home' && (
+        <>
+          {activeTab === 'catalog' && (
+            <>
+              <nav className="catalog-menu" aria-label="Категории">
+                <button
+                  className={!selectedCategoryId ? 'active' : ''}
+                  onClick={() => {
+                    setSelectedCategoryId(null);
+                    setSelectedSize(null);
+                  }}
+                >
+                  Все
+                </button>
+
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    className={selectedCategoryId === category.id ? 'active' : ''}
+                    onClick={() => {
+                      setSelectedCategoryId(category.id);
+                      setSelectedSize(null);
+                    }}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </nav>
+
+              <section className="filters">
+                <p className="section-title">Размер</p>
+                <div className="size-list">
+                  {SIZES.map((size) => (
+                    <button
+                      key={size}
+                      className={selectedSize === size ? 'selected' : ''}
+                      onClick={() =>
+                        setSelectedSize(selectedSize === size ? null : size)
+                      }
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+
+          {activeTab === 'likes' && (
+            <div className="likes-header">
+              <h2>ИЗБРАННОЕ ({likedIds.length})</h2>
+            </div>
+          )}
+
+          <section className="products">
+            {displayedProducts.length === 0 ? (
+              <p className="empty-message">
+                {activeTab === 'likes' ? 'В избранном пока ничего нет' : 'Товаров не найдено'}
+              </p>
+            ) : (
+              displayedProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onSelect={(p) => setSelectedProduct(p)}
+                  isLiked={likedIds.includes(product.id)}
+                  onToggleLike={toggleLike}
+                  isAdmin={isAdmin}
+                  onDelete={handleDeleteProduct}
+                />
+
+              ))я
+            )}
+          </section>
+        </>
+      )}
+
+      {/* Нижняя панель как на макете */}
+      <nav className="bottom-bar">
         <button
-          className={!selectedCategoryId ? 'active' : ''}
+          className={`tab-item ${activeTab === 'home' ? 'active' : ''}`}
           onClick={() => {
-            setSelectedCategoryId(null);
-            setSelectedSize(null);
+            setActiveTab('home');
+            setSelectedProduct(null);
           }}
         >
-          Все
+          <span className="tab-icon">⌂</span>
+          <span className="tab-label">ГЛАВНАЯ</span>
         </button>
 
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            className={selectedCategoryId === category.id ? 'active' : ''}
-            onClick={() => {
-              setSelectedCategoryId(category.id);
-              setSelectedSize(null);
-            }}
-          >
-            {category.name}
-          </button>
-        ))}
+        <button
+          className={`tab-item ${activeTab === 'catalog' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('catalog');
+            setSelectedProduct(null);
+          }}
+        >
+          <span className="tab-icon">▤</span>
+          <span className="tab-label">КАТАЛОГ</span>
+        </button>
+
+        <button
+          className={`tab-item ${activeTab === 'likes' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('likes');
+            setSelectedProduct(null);
+          }}
+        >
+          <span className="tab-icon">♥</span>
+          <span className="tab-label">ЛАЙКИ</span>
+        </button>
       </nav>
-
-      <section className="filters">
-        <p className="section-title">Размер</p>
-
-        <div className="size-list">
-          {SIZES.map((size) => (
-            <button
-              key={size}
-              className={selectedSize === size ? 'selected' : ''}
-              onClick={() =>
-                setSelectedSize(selectedSize === size ? null : size)
-              }
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="products">
-        {filteredProducts.length === 0 ? (
-          <p className="empty-message">Товаров не найдено</p>
-        ) : (
-          filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onSelect={(p) => setSelectedProduct(p)}
-            />
-          ))
-        )}
-      </section>
     </main>
   );
 }
